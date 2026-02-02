@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG教学课程 - 企业文档问答系统</title>
+    <!-- 引入Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 引入Font Awesome图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入CodeMirror用于代码/JSON展示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/json/json.min.js"></script>
+    
+    <style>
+        .card {
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+        }
+        .btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .progress-bar {
+            transition: width 0.5s ease;
+        }
+        .result-section {
+            display: none;
+            margin-top: 20px;
+        }
+        .tab-content {
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+        }
+        .CodeMirror {
+            height: auto !important;
+            min-height: 150px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body class="container mt-4 mb-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="text-center mb-3">RAG教学课程 - 企业文档问答系统</h1>
+            <p class="text-center text-muted">基于RAG Challenge 2参赛项目改造 | 可视化展示RAG全流程</p>
+        </div>
+    </div>
+
+    <!-- 核心标签页 -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="single-question-tab" data-bs-toggle="tab" data-bs-target="#single-question" type="button" role="tab">单问题问答</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="batch-question-tab" data-bs-toggle="tab" data-bs-target="#batch-question" type="button" role="tab">批量问答</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config" type="button" role="tab">系统配置</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="about-tab" data-bs-toggle="tab" data-bs-target="#about" type="button" role="tab">教学说明</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="mainTabsContent">
+                <!-- 单问题问答标签页 -->
+                <div class="tab-pane fade show active" id="single-question" role="tabpanel">
+                    <div class="row">
+                        <!-- 问题输入区 -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-question-circle"></i> 问题输入
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="companyName" class="form-label">公司名称</label>
+                                        <input type="text" class="form-control" id="companyName" placeholder="例如：Apple、特斯拉" value="Apple">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="questionText" class="form-label">问题内容</label>
+                                        <textarea class="form-control" id="questionText" rows="4" placeholder="例如：2024年营收是多少？">2024年营收是多少？</textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="questionType" class="form-label">问题类型</label>
+                                        <select class="form-select" id="questionType">
+                                            <option value="number">数值型（如营收、利润）</option>
+                                            <option value="boolean">布尔型（是/否）</option>
+                                            <option value="text">文本型（名称、描述）</option>
+                                            <option value="comparative">对比型（多公司对比）</option>
+                                        </select>
+                                    </div>
+                                    <button id="submitSingleBtn" class="btn btn-primary w-100">
+                                        <i class="fas fa-paper-plane"></i> 提交问答
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 配置快捷选择 -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-cog"></i> 快速配置
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">检索器类型</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="retrieverType" id="vectorRetriever" checked>
+                                            <label class="form-check-label" for="vectorRetriever">
+                                                向量检索（VectorRetriever）
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="retrieverType" id="hybridRetriever">
+                                            <label class="form-check-label" for="hybridRetriever">
+                                                混合检索（HybridRetriever）
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="topN" class="form-label">检索Top-N数量</label>
+                                        <input type="number" class="form-control" id="topN" value="10" min="1" max="50">
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="llmReranking">
+                                        <label class="form-check-label" for="llmReranking">
+                                            启用LLM重排（抗幻觉优化）
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="parentDocRetrieval">
+                                        <label class="form-check-label" for="parentDocRetrieval">
+                                            父文档检索（上下文补全）
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 加载中提示 -->
+                    <div class="loading-spinner" id="singleLoading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">正在处理问题，请稍候...</p>
+                    </div>
+
+                    <!-- 结果展示区 -->
+                    <div class="result-section" id="singleResult">
+                        <div class="row">
+                            <!-- 检索结果 -->
+                            <div class="col-md-6 mb-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <i class="fas fa-search"></i> 检索结果（RAG上下文）
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="retrievalResultContent"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 答案结果 -->
+                            <div class="col-md-6 mb-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <i class="fas fa-comment-dots"></i> LLM生成答案
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <h5>最终答案</h5>
+                                            <p id="finalAnswer" class="border p-3 rounded bg-light"></p>
+                                        </div>
+                                        <div class="mb-3">
+                                            <h5>引用校验（抗幻觉）</h5>
+                                            <div id="referenceResult" class="border p-3 rounded bg-light"></div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <h5>推理过程</h5>
+                                            <div id="reasoningProcess" class="border p-3 rounded bg-light"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 原始JSON结果 -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-code"></i> 原始JSON结果（教学参考）
+                            </div>
+                            <div class="card-body">
+                                <textarea id="rawJsonResult" class="form-control" rows="8" readonly></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 批量问答标签页 -->
+                <div class="tab-pane fade" id="batch-question" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-file-upload"></i> 批量问题上传
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="batchFile" class="form-label">上传问题JSON文件</label>
+                                <input class="form-control" type="file" id="batchFile" accept=".json">
+                                <div class="form-text">文件格式参考：[{"text":"Apple 2024年营收？","kind":"number"}, ...]</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="batchParallel" class="form-label">并行处理数</label>
+                                <input type="number" class="form-control" id="batchParallel" value="10" min="1" max="50">
+                            </div>
+                            <button id="submitBatchBtn" class="btn btn-primary">
+                                <i class="fas fa-play"></i> 开始批量处理
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 批量处理进度 -->
+                    <div class="loading-spinner" id="batchLoading" style="display: none;">
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" id="batchProgressBar" style="width: 0%;" role="progressbar">0%</div>
+                        </div>
+                        <p class="mt-2" id="batchProgressText">处理进度：0/0</p>
+                    </div>
+
+                    <!-- 批量结果 -->
+                    <div class="result-section" id="batchResult">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="fas fa-chart-bar"></i> 批量处理统计
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="card text-center">
+                                            <div class="card-body">
+                                                <h5 class="card-title">总问题数</h5>
+                                                <p class="card-text display-6" id="totalCount">0</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card text-center text-success">
+                                            <div class="card-body">
+                                                <h5 class="card-title">成功数</h5>
+                                                <p class="card-text display-6" id="successCount">0</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card text-center text-danger">
+                                            <div class="card-body">
+                                                <h5 class="card-title">错误数</h5>
+                                                <p class="card-text display-6" id="errorCount">0</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card text-center text-warning">
+                                            <div class="card-body">
+                                                <h5 class="card-title">N/A数</h5>
+                                                <p class="card-text display-6" id="naCount">0</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mt-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-download"></i> 结果下载</span>
+                                <button id="downloadBatchBtn" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-file-download"></i> 下载JSON结果
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="batchResultContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 系统配置标签页 -->
+                <div class="tab-pane fade" id="config" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-sliders-h"></i> 系统核心配置
+                        </div>
+                        <div class="card-body">
+                            <form id="configForm">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="vectorDbDir" class="form-label">向量数据库目录</label>
+                                        <input type="text" class="form-control" id="vectorDbDir" value="./vector_dbs">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="documentsDir" class="form-label">文档存储目录</label>
+                                        <input type="text" class="form-control" id="documentsDir" value="./documents">
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="apiProvider" class="form-label">API提供商</label>
+                                        <select class="form-select" id="apiProvider">
+                                            <option value="openai">OpenAI</option>
+                                            <option value="ollama">Ollama（本地LLM）</option>
+                                            <option value="dashscope">阿里云通义千问</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="answeringModel" class="form-label">LLM模型名称</label>
+                                        <input type="text" class="form-control" id="answeringModel" value="gpt-4o-2024-08-06">
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="apiKey" class="form-label">API密钥（可选）</label>
+                                        <input type="password" class="form-control" id="apiKey" placeholder="sk-xxx...（留空则使用环境变量）">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="llmRerankingSampleSize" class="form-label">LLM重排样本数</label>
+                                        <input type="number" class="form-control" id="llmRerankingSampleSize" value="20">
+                                    </div>
+                                </div>
+
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="newChallengePipeline" checked>
+                                    <label class="form-check-label" for="newChallengePipeline">
+                                        启用新挑战流水线（教学适配）
+                                    </label>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> 保存配置
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" id="resetConfigBtn">
+                                    <i class="fas fa-reset"></i> 重置默认值
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 教学说明标签页 -->
+                <div class="tab-pane fade" id="about" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-book"></i> RAG教学核心知识点
+                        </div>
+                        <div class="card-body">
+                            <div class="accordion" id="teachingAccordion">
+                                <!-- 知识点1 -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+                                            1. RAG核心原理（检索增强生成）
+                                        </button>
+                                    </h2>
+                                    <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#teachingAccordion">
+                                        <div class="accordion-body">
+                                            <p>RAG（Retrieval-Augmented Generation）是将「检索」和「生成」结合的AI范式，解决纯LLM的幻觉问题：</p>
+                                            <ol>
+                                                <li>检索：根据问题从文档库中找到相关上下文（本系统支持向量检索/混合检索）；</li>
+                                                <li>增强：将检索到的上下文和问题一起传给LLM；</li>
+                                                <li>生成：LLM基于上下文生成准确答案，而非凭空捏造。</li>
+                                            </ol>
+                                            <p class="text-primary"><strong>教学重点</strong>：对比「纯LLM回答」和「RAG回答」的差异，理解检索的抗幻觉作用。</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 知识点2 -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                                            2. 检索器类型与参数调优
+                                        </button>
+                                    </h2>
+                                    <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#teachingAccordion">
+                                        <div class="accordion-body">
+                                            <h5>（1）检索器类型</h5>
+                                            <ul>
+                                                <li><strong>向量检索（VectorRetriever）</strong>：将问题和文档转为向量，通过余弦相似度匹配相关内容，适合语义相似检索；</li>
+                                                <li><strong>混合检索（HybridRetriever）</strong>：结合向量检索+关键词检索，兼顾语义和精准匹配。</li>
+                                            </ul>
+                                            <h5>（2）核心参数</h5>
+                                            <ul>
+                                                <li><strong>Top-N</strong>：检索返回的文档数量（越多上下文越全，但LLM处理越慢）；</li>
+                                                <li><strong>LLM重排</strong>：用LLM对检索结果二次排序，提升相关性；</li>
+                                                <li><strong>父文档检索</strong>：先检索小片段，再回溯完整文档，补充上下文。</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 知识点3 -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                                            3. 抗幻觉关键：引用校验
+                                        </button>
+                                    </h2>
+                                    <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#teachingAccordion">
+                                        <div class="accordion-body">
+                                            <p>本系统的引用校验逻辑（对应参赛项目核心优化）：</p>
+                                            <ol>
+                                                <li>提取LLM返回的页码引用；</li>
+                                                <li>校验页码是否真实存在于检索结果中（剔除幻觉页码）；</li>
+                                                <li>补充/截断引用数量（保证2-8个有效引用）；</li>
+                                                <li>生成标准化引用（PDF SHA1 + 页码）。</li>
+                                            </ol>
+                                            <p class="text-danger"><strong>教学重点</strong>：通过「引用校验结果」展示LLM幻觉问题，理解工程化抗幻觉的思路。</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 知识点4 -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour">
+                                            4. 工程化优化：并行处理
+                                        </button>
+                                    </h2>
+                                    <div id="collapseFour" class="accordion-collapse collapse" data-bs-parent="#teachingAccordion">
+                                        <div class="accordion-body">
+                                            <p>批量处理的工程优化点：</p>
+                                            <ul>
+                                                <li><strong>线程池并行</strong>：用concurrent.futures.ThreadPoolExecutor实现多问题并行处理，提升效率；</li>
+                                                <li><strong>线程安全</strong>：用threading.Lock保证多线程下结果存储不冲突；</li>
+                                                <li><strong>进度保存</strong>：实时保存处理进度，避免崩溃后重跑。</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入JS依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局配置
+        const API_BASE_URL = "http://localhost:8000/api"; // 替换为你的后端API地址
+
+        // 初始化CodeMirror编辑器
+        let jsonEditor;
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化JSON编辑器
+            jsonEditor = CodeMirror.fromTextArea(document.getElementById('rawJsonResult'), {
+                mode: 'application/json',
+                theme: 'default',
+                lineNumbers: true,
+                readOnly: true
+            });
+
+            // 单问题提交
+            document.getElementById('submitSingleBtn').addEventListener('click', submitSingleQuestion);
+            
+            // 批量处理提交
+            document.getElementById('submitBatchBtn').addEventListener('click', submitBatchQuestions);
+            
+            // 批量结果下载
+            document.getElementById('downloadBatchBtn').addEventListener('click', downloadBatchResult);
+            
+            // 配置表单提交
+            document.getElementById('configForm').addEventListener('submit', saveConfig);
+            
+            // 重置配置
+            document.getElementById('resetConfigBtn').addEventListener('click', resetConfig);
+        });
+
+        // 单问题提交逻辑
+        function submitSingleQuestion() {
+            // 隐藏旧结果，显示加载中
+            document.getElementById('singleResult').style.display = 'none';
+            document.getElementById('singleLoading').style.display = 'block';
+
+            // 获取表单数据
+            const formData = {
+                company_name: document.getElementById('companyName').value,
+                question: document.getElementById('questionText').value,
+                schema: document.getElementById('questionType').value,
+                retriever_type: document.querySelector('input[name="retrieverType"]:checked').id === 'hybridRetriever' ? 'hybrid' : 'vector',
+                top_n: parseInt(document.getElementById('topN').value),
+                llm_reranking: document.getElementById('llmReranking').checked,
+                parent_document_retrieval: document.getElementById('parentDocRetrieval').checked
+            };
+
+            // 模拟API请求（实际项目中替换为真实fetch）
+            setTimeout(() => {
+                // 模拟返回结果（教学演示用，实际替换为真实API响应）
+                const mockResult = {
+                    retrieval_results: [
+                        {page: 5, text: "Apple 2024年营收为9000亿美元，同比增长8%。"},
+                        {page: 6, text: "核心业务iPhone贡献了5200亿营收，占比57.8%。"}
+                    ],
+                    final_answer: "9000亿美元",
+                    relevant_pages: [5, 6],
+                    references: [
+                        {pdf_sha1: "a1b2c3d4e5f6", page_index: 5},
+                        {pdf_sha1: "a1b2c3d4e5f6", page_index: 6}
+                    ],
+                    step_by_step_analysis: "1. 检索到Apple 2024年年报第5页提到营收9000亿；2. 第6页验证了数据准确性；3. 确认最终营收为9000亿美元。",
+                    reasoning_summary: "基于年报第5、6页的公开数据，Apple 2024年营收为9000亿美元。"
+                };
+
+                // 渲染结果
+                renderSingleResult(mockResult);
+                
+                // 隐藏加载中，显示结果
+                document.getElementById('singleLoading').style.display = 'none';
+                document.getElementById('singleResult').style.display = 'block';
+            }, 2000);
+        }
+
+        // 渲染单问题结果
+        function renderSingleResult(result) {
+            // 渲染检索结果
+            let retrievalHtml = '';
+            result.retrieval_results.forEach(item => {
+                retrievalHtml += `
+                    <div class="border p-3 mb-3 rounded">
+                        <h6>页码：${item.page}</h6>
+                        <p>${item.text}</p>
+                    </div>
+                `;
+            });
+            document.getElementById('retrievalResultContent').innerHTML = retrievalHtml;
+
+            // 渲染最终答案
+            document.getElementById('finalAnswer').textContent = result.final_answer;
+
+            // 渲染引用校验
+            let referenceHtml = `<p>有效页码：${result.relevant_pages.join(', ')}</p>`;
+            referenceHtml += `<p>标准化引用：</p><ul>`;
+            result.references.forEach(ref => {
+                referenceHtml += `<li>SHA1: ${ref.pdf_sha1} | 页码: ${ref.page_index}</li>`;
+            });
+            referenceHtml += `</ul>`;
+            document.getElementById('referenceResult').innerHTML = referenceHtml;
+
+            // 渲染推理过程
+            document.getElementById('reasoningProcess').textContent = result.step_by_step_analysis;
+
+            // 渲染原始JSON
+            jsonEditor.setValue(JSON.stringify(result, null, 2));
+        }
+
+        // 批量问题提交逻辑
+        function submitBatchQuestions() {
+            const fileInput = document.getElementById('batchFile');
+            if (!fileInput.files.length) {
+                alert('请先上传问题JSON文件！');
+                return;
+            }
+
+            // 显示加载进度
+            document.getElementById('batchLoading').style.display = 'block';
+            document.getElementById('batchResult').style.display = 'none';
+
+            // 模拟批量处理进度（教学演示用）
+            const totalQuestions = 10; // 模拟10个问题
+            let processed = 0;
+            
+            const progressInterval = setInterval(() => {
+                processed++;
+                const progress = (processed / totalQuestions) * 100;
+                
+                // 更新进度条
+                document.getElementById('batchProgressBar').style.width = `${progress}%`;
+                document.getElementById('batchProgressBar').textContent = `${Math.round(progress)}%`;
+                document.getElementById('batchProgressText').textContent = `处理进度：${processed}/${totalQuestions}`;
+
+                // 处理完成
+                if (processed >= totalQuestions) {
+                    clearInterval(progressInterval);
+                    
+                    // 模拟统计结果
+                    document.getElementById('totalCount').textContent = totalQuestions;
+                    document.getElementById('successCount').textContent = 8;
+                    document.getElementById('errorCount').textContent = 1;
+                    document.getElementById('naCount').textContent = 1;
+
+                    // 渲染批量结果
+                    document.getElementById('batchResultContent').innerHTML = `
+                        <div class="alert alert-success">
+                            批量处理完成！可下载JSON结果查看详细信息。
+                        </div>
+                    `;
+
+                    // 显示结果
+                    document.getElementById('batchLoading').style.display = 'none';
+                    document.getElementById('batchResult').style.display = 'block';
+                }
+            }, 500);
+        }
+
+        // 下载批量结果
+        function downloadBatchResult() {
+            const mockBatchResult = {
+                statistics: {
+                    total_questions: 10,
+                    success_count: 8,
+                    error_count: 1,
+                    na_count: 1
+                },
+                questions: [
+                    {
+                        question_text: "Apple 2024年营收是多少？",
+                        kind: "number",
+                        value: "9000亿美元",
+                        references: [{pdf_sha1: "a1b2c3d4e5f6", page_index: 5}]
+                    },
+                    {
+                        question_text: "Tesla 2024年利润是多少？",
+                        kind: "number",
+                        value: "N/A",
+                        references: []
+                    }
+                ]
+            };
+
+            // 创建JSON文件并下载
+            const blob = new Blob([JSON.stringify(mockBatchResult, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'rag_batch_results.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 保存配置
+        function saveConfig(e) {
+            e.preventDefault();
+            
+            const config = {
+                vector_db_dir: document.getElementById('vectorDbDir').value,
+                documents_dir: document.getElementById('documentsDir').value,
+                api_provider: document.getElementById('apiProvider').value,
+                answering_model: document.getElementById('answeringModel').value,
+                api_key: document.getElementById('apiKey').value,
+                llm_reranking_sample_size: parseInt(document.getElementById('llmRerankingSampleSize').value),
+                new_challenge_pipeline: document.getElementById('newChallengePipeline').checked
+            };
+
+            // 模拟保存配置（实际项目中调用API）
+            alert('配置保存成功！\n' + JSON.stringify(config, null, 2));
+        }
+
+        // 重置配置
+        function resetConfig() {
+            document.getElementById('vectorDbDir').value = './vector_dbs';
+            document.getElementById('documentsDir').value = './documents';
+            document.getElementById('apiProvider').value = 'openai';
+            document.getElementById('answeringModel').value = 'gpt-4o-2024-08-06';
+            document.getElementById('apiKey').value = '';
+            document.getElementById('llmRerankingSampleSize').value = 20;
+            document.getElementById('newChallengePipeline').checked = true;
+        }
+    </script>
+</body>
+</html>
